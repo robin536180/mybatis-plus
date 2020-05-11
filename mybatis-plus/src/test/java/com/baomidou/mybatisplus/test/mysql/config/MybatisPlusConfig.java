@@ -21,9 +21,10 @@ import com.baomidou.mybatisplus.core.config.GlobalConfig;
 import com.baomidou.mybatisplus.core.injector.AbstractMethod;
 import com.baomidou.mybatisplus.core.injector.DefaultSqlInjector;
 import com.baomidou.mybatisplus.core.parser.ISqlParser;
-import com.baomidou.mybatisplus.extension.injector.methods.additional.AlwaysUpdateSomeColumnById;
-import com.baomidou.mybatisplus.extension.injector.methods.additional.InsertBatchSomeColumn;
-import com.baomidou.mybatisplus.extension.injector.methods.additional.LogicDeleteByIdWithFill;
+import com.baomidou.mybatisplus.extension.MybatisMapWrapperFactory;
+import com.baomidou.mybatisplus.extension.injector.methods.AlwaysUpdateSomeColumnById;
+import com.baomidou.mybatisplus.extension.injector.methods.InsertBatchSomeColumn;
+import com.baomidou.mybatisplus.extension.injector.methods.LogicDeleteByIdWithFill;
 import com.baomidou.mybatisplus.extension.plugins.OptimisticLockerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.PaginationInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.tenant.TenantHandler;
@@ -50,7 +51,7 @@ import java.util.List;
  * @since 2017/4/1
  */
 @Configuration
-@MapperScan({"com.baomidou.mybatisplus.test.base.mapper.children", "com.baomidou.mybatisplus.test.base.mapper.commons", "com.baomidou.mybatisplus.test.mysql.mapper"})
+@MapperScan("com.baomidou.mybatisplus.test.mysql.mapper")
 public class MybatisPlusConfig {
 
     @Bean("mybatisSqlSession")
@@ -60,7 +61,7 @@ public class MybatisPlusConfig {
         /* 数据源 */
         sqlSessionFactory.setDataSource(dataSource);
         /* 枚举扫描 */
-        sqlSessionFactory.setTypeEnumsPackage("com.baomidou.mybatisplus.test.base.enums");
+        sqlSessionFactory.setTypeEnumsPackage("com.baomidou.mybatisplus.test.mysql.enums");
         /* xml扫描 */
         sqlSessionFactory.setMapperLocations(new PathMatchingResourcePatternResolver()
             .getResources("classpath:/mapper/*.xml"));
@@ -74,6 +75,8 @@ public class MybatisPlusConfig {
         configuration.addInterceptor(paginationInterceptor);
         /* 乐观锁插件 */
         configuration.addInterceptor(new OptimisticLockerInterceptor());
+        /* map 下划线转驼峰 */
+        configuration.setObjectWrapperFactory(new MybatisMapWrapperFactory());
         sqlSessionFactory.setConfiguration(configuration);
         /* 自动填充插件 */
         globalConfig.setMetaObjectHandler(new MysqlMetaObjectHandler());
@@ -91,8 +94,8 @@ public class MybatisPlusConfig {
              * 注入自定义全局方法
              */
             @Override
-            public List<AbstractMethod> getMethodList() {
-                List<AbstractMethod> methodList = super.getMethodList();
+            public List<AbstractMethod> getMethodList(Class<?> mapperClass) {
+                List<AbstractMethod> methodList = super.getMethodList(mapperClass);
                 methodList.add(new LogicDeleteByIdWithFill());
                 // 不要逻辑删除字段, 不要乐观锁字段, 不要填充策略是 UPDATE 的字段
                 methodList.add(new InsertBatchSomeColumn(t -> !t.isLogicDelete() && !t.isVersion() && t.getFieldFill() != FieldFill.UPDATE));
@@ -115,8 +118,9 @@ public class MybatisPlusConfig {
         List<ISqlParser> sqlParserList = new ArrayList<>();
         TenantSqlParser tenantSqlParser = new TenantSqlParser();
         tenantSqlParser.setTenantHandler(new TenantHandler() {
+
             @Override
-            public Expression getTenantId() {
+            public Expression getTenantId(boolean where) {
                 return new LongValue(1L);
             }
 

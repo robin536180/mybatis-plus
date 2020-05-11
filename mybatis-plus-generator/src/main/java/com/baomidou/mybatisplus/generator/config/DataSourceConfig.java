@@ -17,14 +17,15 @@ package com.baomidou.mybatisplus.generator.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.toolkit.ExceptionUtils;
-import com.baomidou.mybatisplus.generator.config.converts.*;
-import com.baomidou.mybatisplus.generator.config.querys.*;
+import com.baomidou.mybatisplus.generator.config.converts.TypeConvertRegistry;
+import com.baomidou.mybatisplus.generator.config.querys.DbQueryRegistry;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Optional;
 
 /**
  * 数据库配置
@@ -71,30 +72,10 @@ public class DataSourceConfig {
 
     public IDbQuery getDbQuery() {
         if (null == dbQuery) {
-            switch (getDbType()) {
-                case ORACLE:
-                    dbQuery = new OracleQuery();
-                    break;
-                case SQL_SERVER:
-                    dbQuery = new SqlServerQuery();
-                    break;
-                case POSTGRE_SQL:
-                    dbQuery = new PostgreSqlQuery();
-                    break;
-                case DB2:
-                    dbQuery = new DB2Query();
-                    break;
-                case MARIADB:
-                    dbQuery = new MariadbQuery();
-                    break;
-                case H2:
-                    dbQuery = new H2Query();
-                    break;
-                default:
-                    // 默认 MYSQL
-                    dbQuery = new MySqlQuery();
-                    break;
-            }
+            DbType dbType = getDbType();
+            DbQueryRegistry dbQueryRegistry = new DbQueryRegistry();
+            // 默认 MYSQL
+            dbQuery = Optional.ofNullable(dbQueryRegistry.getDbQuery(dbType)).orElseGet(() -> dbQueryRegistry.getDbQuery(DbType.MYSQL));
         }
         return dbQuery;
     }
@@ -137,8 +118,12 @@ public class DataSourceConfig {
             return DbType.DB2;
         } else if (str.contains("mariadb")) {
             return DbType.MARIADB;
+        } else if (str.contains("sqlite")) {
+            return DbType.MARIADB;
         } else if (str.contains("h2")) {
             return DbType.H2;
+        } else if (str.contains("kingbase") || str.contains("kingbase8")) {
+            return DbType.KINGBASE_ES;
         } else {
             return null;
         }
@@ -146,27 +131,10 @@ public class DataSourceConfig {
 
     public ITypeConvert getTypeConvert() {
         if (null == typeConvert) {
-            switch (getDbType()) {
-                case ORACLE:
-                    typeConvert = new OracleTypeConvert();
-                    break;
-                case SQL_SERVER:
-                    typeConvert = new SqlServerTypeConvert();
-                    break;
-                case POSTGRE_SQL:
-                    typeConvert = new PostgreSqlTypeConvert();
-                    break;
-                case DB2:
-                    typeConvert = new DB2TypeConvert();
-                    break;
-                case MARIADB:
-                    typeConvert = new MySqlTypeConvert();
-                    break;
-                default:
-                    // 默认 MYSQL
-                    typeConvert = new MySqlTypeConvert();
-                    break;
-            }
+            DbType dbType = getDbType();
+            TypeConvertRegistry typeConvertRegistry = new TypeConvertRegistry();
+            // 默认 MYSQL
+            typeConvert = Optional.ofNullable(typeConvertRegistry.getTypeConvert(dbType)).orElseGet(() -> typeConvertRegistry.getTypeConvert(DbType.MYSQL));
         }
         return typeConvert;
     }
@@ -177,12 +145,12 @@ public class DataSourceConfig {
      * @return Connection
      */
     public Connection getConn() {
-        Connection conn = null;
+        Connection conn;
         try {
             Class.forName(driverName);
             conn = DriverManager.getConnection(url, username, password);
         } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         return conn;
     }

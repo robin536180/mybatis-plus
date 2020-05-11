@@ -37,7 +37,7 @@ class ReflectionKitTest {
         private transient String test;
 
         @SuppressWarnings("unused")
-		private static String testStatic;
+        private static String testStatic;
 
         private String name;
 
@@ -102,7 +102,7 @@ class ReflectionKitTest {
     }
 
     @Test
-    void testIsPrimitiveOrWrapper(){
+    void testIsPrimitiveOrWrapper() {
         Assertions.assertFalse(ReflectionKit.isPrimitiveOrWrapper(String.class));
         Assertions.assertTrue(ReflectionKit.isPrimitiveOrWrapper(Boolean.class));
         Assertions.assertTrue(ReflectionKit.isPrimitiveOrWrapper(boolean.class));

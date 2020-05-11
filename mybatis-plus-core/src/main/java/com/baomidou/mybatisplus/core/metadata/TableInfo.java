@@ -18,19 +18,22 @@ package com.baomidou.mybatisplus.core.metadata;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.KeySequence;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.toolkit.Assert;
-import com.baomidou.mybatisplus.core.toolkit.Constants;
-import com.baomidou.mybatisplus.core.toolkit.ExceptionUtils;
-import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import com.baomidou.mybatisplus.core.toolkit.*;
 import com.baomidou.mybatisplus.core.toolkit.sql.SqlScriptUtils;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.apache.ibatis.mapping.ResultFlag;
+import org.apache.ibatis.mapping.ResultMap;
+import org.apache.ibatis.mapping.ResultMapping;
 import org.apache.ibatis.session.Configuration;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.joining;
@@ -42,9 +45,14 @@ import static java.util.stream.Collectors.joining;
  * @since 2016-01-23
  */
 @Data
+@Setter(AccessLevel.PACKAGE)
 @Accessors(chain = true)
 public class TableInfo implements Constants {
 
+    /**
+     * 实体类型
+     */
+    private Class<?> entityType;
     /**
      * 表主键ID 类型
      */
@@ -58,18 +66,30 @@ public class TableInfo implements Constants {
      */
     private String resultMap;
     /**
+     * 是否是需要自动生成的 resultMap
+     */
+    private boolean autoInitResultMap;
+    /**
+     * 是否是自动生成的 resultMap
+     */
+    private boolean initResultMap;
+    /**
      * 主键是否有存在字段名与属性名关联
      * <p>true: 表示要进行 as</p>
      */
-    private boolean keyRelated = false;
+    private boolean keyRelated;
+    /**
+     * 表主键ID 字段名
+     */
+    private String keyColumn;
     /**
      * 表主键ID 属性名
      */
     private String keyProperty;
     /**
-     * 表主键ID 字段名
+     * 表主键ID 属性类型
      */
-    private String keyColumn;
+    private Class<?> keyType;
     /**
      * 表主键ID Sequence
      */
@@ -90,15 +110,12 @@ public class TableInfo implements Constants {
     /**
      * 是否开启逻辑删除
      */
-    private boolean logicDelete = false;
+    @Setter(AccessLevel.NONE)
+    private boolean logicDelete;
     /**
      * 是否开启下划线转驼峰
      */
-    private boolean underCamel = true;
-    /**
-     * 标记该字段属于哪个类
-     */
-    private Class<?> clazz;
+    private boolean underCamel;
     /**
      * 缓存包含主键及字段的 sql select
      */
@@ -111,6 +128,42 @@ public class TableInfo implements Constants {
     @Setter(AccessLevel.NONE)
     @Getter(AccessLevel.NONE)
     private String sqlSelect;
+    /**
+     * 表字段是否启用了插入填充
+     *
+     * @since 3.3.0
+     */
+    @Getter
+    @Setter(AccessLevel.NONE)
+    private boolean withInsertFill;
+    /**
+     * 表字段是否启用了更新填充
+     *
+     * @since 3.3.0
+     */
+    @Getter
+    @Setter(AccessLevel.NONE)
+    private boolean withUpdateFill;
+    /**
+     * 表字段是否启用了乐观锁
+     *
+     * @since 3.3.1
+     */
+    @Getter
+    @Setter(AccessLevel.NONE)
+    private boolean withVersion;
+    /**
+     * 乐观锁字段
+     *
+     * @since 3.3.1
+     */
+    @Getter
+    @Setter(AccessLevel.NONE)
+    private TableFieldInfo versionFieldInfo;
+
+    public TableInfo(Class<?> entityType) {
+        this.entityType = entityType;
+    }
 
     /**
      * 获得注入的 SQL Statement
@@ -125,18 +178,10 @@ public class TableInfo implements Constants {
     /**
      * 设置 Configuration
      */
-    public void setConfiguration(Configuration configuration) {
+    void setConfiguration(Configuration configuration) {
         Assert.notNull(configuration, "Error: You need Initialize MybatisConfiguration !");
         this.configuration = (MybatisConfiguration) configuration;
-    }
-
-    /**
-     * 设置逻辑删除
-     */
-    void setLogicDelete(boolean logicDelete) {
-        if (logicDelete) {
-            this.logicDelete = true;
-        }
+        this.underCamel = configuration.isMapUnderscoreToCamelCase();
     }
 
     /**
@@ -148,7 +193,7 @@ public class TableInfo implements Constants {
         if (sqlSelect != null) {
             return sqlSelect;
         }
-        if (StringUtils.isNotEmpty(keyProperty)) {
+        if (StringUtils.isNotBlank(keyProperty)) {
             sqlSelect = keyColumn;
             if (keyRelated) {
                 sqlSelect += (" AS " + keyProperty);
@@ -182,9 +227,9 @@ public class TableInfo implements Constants {
         String sqlSelect = getKeySqlSelect();
         String fieldsSqlSelect = fieldList.stream().filter(predicate)
             .map(TableFieldInfo::getSqlSelect).collect(joining(COMMA));
-        if (StringUtils.isNotEmpty(sqlSelect) && StringUtils.isNotEmpty(fieldsSqlSelect)) {
+        if (StringUtils.isNotBlank(sqlSelect) && StringUtils.isNotBlank(fieldsSqlSelect)) {
             return sqlSelect + COMMA + fieldsSqlSelect;
-        } else if (StringUtils.isNotEmpty(fieldsSqlSelect)) {
+        } else if (StringUtils.isNotBlank(fieldsSqlSelect)) {
             return fieldsSqlSelect;
         }
         return sqlSelect;
@@ -199,7 +244,7 @@ public class TableInfo implements Constants {
      */
     public String getKeyInsertSqlProperty(final String prefix, final boolean newLine) {
         final String newPrefix = prefix == null ? EMPTY : prefix;
-        if (StringUtils.isNotEmpty(keyProperty)) {
+        if (StringUtils.isNotBlank(keyProperty)) {
             if (idType == IdType.AUTO) {
                 return EMPTY;
             }
@@ -216,7 +261,7 @@ public class TableInfo implements Constants {
      * @return sql 脚本片段
      */
     public String getKeyInsertSqlColumn(final boolean newLine) {
-        if (StringUtils.isNotEmpty(keyColumn)) {
+        if (StringUtils.isNotBlank(keyColumn)) {
             if (idType == IdType.AUTO) {
                 return EMPTY;
             }
@@ -237,7 +282,7 @@ public class TableInfo implements Constants {
     public String getAllInsertSqlPropertyMaybeIf(final String prefix) {
         final String newPrefix = prefix == null ? EMPTY : prefix;
         return getKeyInsertSqlProperty(newPrefix, true) + fieldList.stream()
-            .map(i -> i.getInsertSqlPropertyMaybeIf(newPrefix)).collect(joining(NEWLINE));
+            .map(i -> i.getInsertSqlPropertyMaybeIf(newPrefix)).filter(Objects::nonNull).collect(joining(NEWLINE));
     }
 
     /**
@@ -251,7 +296,7 @@ public class TableInfo implements Constants {
      */
     public String getAllInsertSqlColumnMaybeIf() {
         return getKeyInsertSqlColumn(true) + fieldList.stream().map(TableFieldInfo::getInsertSqlColumnMaybeIf)
-            .collect(joining(NEWLINE));
+            .filter(Objects::nonNull).collect(joining(NEWLINE));
     }
 
     /**
@@ -271,8 +316,8 @@ public class TableInfo implements Constants {
                 }
                 return true;
             })
-            .map(i -> i.getSqlWhere(newPrefix)).collect(joining(NEWLINE));
-        if (!withId || StringUtils.isEmpty(keyProperty)) {
+            .map(i -> i.getSqlWhere(newPrefix)).filter(Objects::nonNull).collect(joining(NEWLINE));
+        if (!withId || StringUtils.isBlank(keyProperty)) {
             return filedSqlScript;
         }
         String newKeyProperty = newPrefix + keyProperty;
@@ -296,28 +341,91 @@ public class TableInfo implements Constants {
                     return !(isLogicDelete() && i.isLogicDelete());
                 }
                 return true;
-            }).map(i -> i.getSqlSet(newPrefix)).collect(joining(NEWLINE));
+            }).map(i -> i.getSqlSet(newPrefix)).filter(Objects::nonNull).collect(joining(NEWLINE));
     }
 
     /**
      * 获取逻辑删除字段的 sql 脚本
      *
      * @param startWithAnd 是否以 and 开头
-     * @param deleteValue  是否需要的是逻辑删除值
+     * @param isWhere      是否需要的是逻辑删除值
      * @return sql 脚本
      */
-    public String getLogicDeleteSql(boolean startWithAnd, boolean deleteValue) {
+    public String getLogicDeleteSql(boolean startWithAnd, boolean isWhere) {
         if (logicDelete) {
             TableFieldInfo field = fieldList.stream().filter(TableFieldInfo::isLogicDelete).findFirst()
                 .orElseThrow(() -> ExceptionUtils.mpe("can't find the logicFiled from table {%s}", tableName));
-            String formatStr = field.isCharSequence() ? "'%s'" : "%s";
-            String logicDeleteSql = field.getColumn() + EQUALS +
-                String.format(formatStr, deleteValue ? field.getLogicDeleteValue() : field.getLogicNotDeleteValue());
+            String logicDeleteSql = formatLogicDeleteSql(field, isWhere);
             if (startWithAnd) {
                 logicDeleteSql = " AND " + logicDeleteSql;
             }
             return logicDeleteSql;
         }
         return EMPTY;
+    }
+
+    /**
+     * format logic delete SQL, can be overrided by subclass
+     * github #1386
+     *
+     * @param field   TableFieldInfo
+     * @param isWhere true: logicDeleteValue, false: logicNotDeleteValue
+     * @return
+     */
+    private String formatLogicDeleteSql(TableFieldInfo field, boolean isWhere) {
+        final String value = isWhere ? field.getLogicNotDeleteValue() : field.getLogicDeleteValue();
+        if (isWhere) {
+            if (NULL.equalsIgnoreCase(value)) {
+                return field.getColumn() + " IS NULL";
+            } else {
+                return field.getColumn() + EQUALS + String.format(field.isCharSequence() ? "'%s'" : "%s", value);
+            }
+        }
+        final String targetStr = field.getColumn() + EQUALS;
+        if (NULL.equalsIgnoreCase(value)) {
+            return targetStr + NULL;
+        } else {
+            return targetStr + String.format(field.isCharSequence() ? "'%s'" : "%s", value);
+        }
+    }
+
+    /**
+     * 自动构建 resultMap 并注入(如果条件符合的话)
+     */
+    void initResultMapIfNeed() {
+        if (autoInitResultMap && null == resultMap) {
+            String id = currentNamespace + DOT + MYBATIS_PLUS + UNDERSCORE + entityType.getSimpleName();
+            List<ResultMapping> resultMappings = new ArrayList<>();
+            if (keyType != null) {
+                ResultMapping idMapping = new ResultMapping.Builder(configuration, keyProperty, keyColumn, keyType)
+                    .flags(Collections.singletonList(ResultFlag.ID)).build();
+                resultMappings.add(idMapping);
+            }
+            if (CollectionUtils.isNotEmpty(fieldList)) {
+                fieldList.forEach(i -> resultMappings.add(i.getResultMapping(configuration)));
+            }
+            ResultMap resultMap = new ResultMap.Builder(configuration, id, entityType, resultMappings).build();
+            configuration.addResultMap(resultMap);
+            this.resultMap = id;
+        }
+    }
+
+    void setFieldList(List<TableFieldInfo> fieldList) {
+        this.fieldList = fieldList;
+        fieldList.forEach(i -> {
+            if (i.isLogicDelete()) {
+                this.logicDelete = true;
+            }
+            if (i.isWithInsertFill()) {
+                this.withInsertFill = true;
+            }
+            if (i.isWithUpdateFill()) {
+                this.withUpdateFill = true;
+            }
+            if (i.isVersion()) {
+                this.withVersion = true;
+                this.versionFieldInfo = i;
+            }
+        });
     }
 }

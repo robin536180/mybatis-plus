@@ -15,18 +15,18 @@
  */
 package com.baomidou.mybatisplus.core.toolkit;
 
-import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.core.incrementer.IKeyGenerator;
-import com.baomidou.mybatisplus.core.injector.DefaultSqlInjector;
 import com.baomidou.mybatisplus.core.injector.ISqlInjector;
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -45,7 +45,7 @@ public class GlobalConfigUtils {
     public static SqlSessionFactory currentSessionFactory(Class<?> clazz) {
         TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
         Assert.notNull(tableInfo, ClassUtils.getUserClass(clazz).getName() + " Not Found TableInfoCache.");
-        return tableInfo.getConfiguration().getGlobalConfig().getSqlSessionFactory();
+        return getGlobalConfig(tableInfo.getConfiguration()).getSqlSessionFactory();
     }
 
     /**
@@ -66,10 +66,6 @@ public class GlobalConfigUtils {
         return ((MybatisConfiguration) configuration).getGlobalConfig();
     }
 
-    public static DbType getDbType(Configuration configuration) {
-        return getGlobalConfig(configuration).getDbConfig().getDbType();
-    }
-
     public static IKeyGenerator getKeyGenerator(Configuration configuration) {
         return getGlobalConfig(configuration).getDbConfig().getKeyGenerator();
     }
@@ -79,18 +75,11 @@ public class GlobalConfigUtils {
     }
 
     public static ISqlInjector getSqlInjector(Configuration configuration) {
-        // fix #140
-        GlobalConfig globalConfiguration = getGlobalConfig(configuration);
-        ISqlInjector sqlInjector = globalConfiguration.getSqlInjector();
-        if (sqlInjector == null) {
-            sqlInjector = new DefaultSqlInjector();
-            globalConfiguration.setSqlInjector(sqlInjector);
-        }
-        return sqlInjector;
+        return getGlobalConfig(configuration).getSqlInjector();
     }
 
-    public static MetaObjectHandler getMetaObjectHandler(Configuration configuration) {
-        return getGlobalConfig(configuration).getMetaObjectHandler();
+    public static Optional<MetaObjectHandler> getMetaObjectHandler(Configuration configuration) {
+        return Optional.ofNullable(getGlobalConfig(configuration).getMetaObjectHandler());
     }
 
     public static Class<?> getSuperMapperClass(Configuration configuration) {

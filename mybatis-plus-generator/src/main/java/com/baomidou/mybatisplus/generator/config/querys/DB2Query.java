@@ -25,13 +25,6 @@ import com.baomidou.mybatisplus.annotation.DbType;
  */
 public class DB2Query extends AbstractDbQuery {
 
-
-    @Override
-    public DbType dbType() {
-        return DbType.DB2;
-    }
-
-
     @Override
     public String tablesSql() {
         return "SELECT * FROM SYSCAT.TABLES where tabschema=%s";
@@ -40,7 +33,7 @@ public class DB2Query extends AbstractDbQuery {
 
     @Override
     public String tableFieldsSql() {
-        return "SELECT *  FROM syscat.columns WHERE tabschema=%s AND tabname='%s'";
+        return "SELECT * FROM syscat.columns WHERE tabschema=%s AND tabname='%s'";
     }
 
 

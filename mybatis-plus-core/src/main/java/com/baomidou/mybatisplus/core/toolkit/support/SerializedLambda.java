@@ -74,7 +74,7 @@ public class SerializedLambda implements Serializable {
      * @return 返回 class 名称
      */
     public String getFunctionalInterfaceClassName() {
-        return normalName(functionalInterfaceClass);
+        return normalizedName(functionalInterfaceClass);
     }
 
     /**
@@ -92,7 +92,7 @@ public class SerializedLambda implements Serializable {
      * @return 类名
      */
     public String getImplClassName() {
-        return normalName(implClass);
+        return normalizedName(implClass);
     }
 
     /**
@@ -110,8 +110,16 @@ public class SerializedLambda implements Serializable {
      * @param name 名称
      * @return 正常的类名
      */
-    private String normalName(String name) {
+    private String normalizedName(String name) {
         return name.replace('/', '.');
+    }
+
+    /**
+     * @return 获取实例化方法的类型
+     */
+    public Class<?> getInstantiatedType() {
+        String instantiatedTypeName = normalizedName(instantiatedMethodType.substring(2, instantiatedMethodType.indexOf(';')));
+        return ClassUtils.toClassConfident(instantiatedTypeName);
     }
 
     /**
@@ -119,8 +127,12 @@ public class SerializedLambda implements Serializable {
      */
     @Override
     public String toString() {
-        return String.format("%s -> %s::%s", getFunctionalInterfaceClassName(), getImplClass().getSimpleName(),
-            implMethodName);
+        String interfaceName = getFunctionalInterfaceClassName();
+        String implName = getImplClassName();
+        return String.format("%s -> %s::%s",
+                interfaceName.substring(interfaceName.lastIndexOf('.') + 1),
+                implName.substring(implName.lastIndexOf('.') + 1),
+                implMethodName);
     }
 
 }

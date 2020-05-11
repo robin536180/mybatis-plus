@@ -16,6 +16,7 @@
 package com.baomidou.mybatisplus.core.toolkit;
 
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.toolkit.support.ColumnCache;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.core.toolkit.support.SerializedLambda;
@@ -39,7 +40,7 @@ public final class LambdaUtils {
     /**
      * 字段映射
      */
-    private static final Map<Class<?>, Map<String, ColumnCache>> LAMBDA_MAP = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, ColumnCache>> COLUMN_CACHE_MAP = new ConcurrentHashMap<>();
 
     /**
      * SerializedLambda 反序列化缓存
@@ -58,12 +59,12 @@ public final class LambdaUtils {
     public static <T> SerializedLambda resolve(SFunction<T, ?> func) {
         Class<?> clazz = func.getClass();
         return Optional.ofNullable(FUNC_CACHE.get(clazz))
-            .map(WeakReference::get)
-            .orElseGet(() -> {
-                SerializedLambda lambda = SerializedLambda.resolve(func);
-                FUNC_CACHE.put(clazz, new WeakReference<>(lambda));
-                return lambda;
-            });
+                .map(WeakReference::get)
+                .orElseGet(() -> {
+                    SerializedLambda lambda = SerializedLambda.resolve(func);
+                    FUNC_CACHE.put(clazz, new WeakReference<>(lambda));
+                    return lambda;
+                });
     }
 
     /**
@@ -76,23 +77,17 @@ public final class LambdaUtils {
      * @param key key
      * @return 大写的 key
      */
-    private static String formatKey(String key) {
+    public static String formatKey(String key) {
         return key.toUpperCase(ENGLISH);
     }
 
     /**
-     * 获取 clazz 中某字段对应的列信息
+     * 将传入的表信息加入缓存
      *
-     * @param clazz     class 类
-     * @param fieldName 字段名称
-     * @return 如果存在，返回字段信息；否则返回 null
+     * @param tableInfo 表信息
      */
-    public static ColumnCache getColumnOfProperty(Class<?> clazz, String fieldName) {
-        Map<String, ColumnCache> map = LAMBDA_MAP.computeIfAbsent(clazz, c -> {
-            TableInfo ti = TableInfoHelper.getTableInfo(c);
-            return null == ti ? null : createColumnCacheMap(ti);
-        });
-        return null == map ? null : map.get(formatKey(fieldName));
+    public static void installCache(TableInfo tableInfo) {
+        COLUMN_CACHE_MAP.put(tableInfo.getEntityType().getName(), createColumnCacheMap(tableInfo));
     }
 
     /**
@@ -102,16 +97,30 @@ public final class LambdaUtils {
      * @return 缓存 map
      */
     private static Map<String, ColumnCache> createColumnCacheMap(TableInfo info) {
-        Map<String, ColumnCache> map = new HashMap<>(info.getFieldList().size() + 1);
+        Map<String, ColumnCache> map = new HashMap<>();
 
         String kp = info.getKeyProperty();
-        if (null != kp) {
+        if (StringUtils.isNotBlank(kp)) {
             map.put(formatKey(kp), new ColumnCache(info.getKeyColumn(), info.getKeySqlSelect()));
         }
 
         info.getFieldList().forEach(i ->
-            map.put(formatKey(i.getProperty()), new ColumnCache(i.getColumn(), i.getSqlSelect()))
+                map.put(formatKey(i.getProperty()), new ColumnCache(i.getColumn(), i.getSqlSelect()))
         );
         return map;
     }
+
+    /**
+     * 获取实体对应字段 MAP
+     *
+     * @param clazz 实体类
+     * @return 缓存 map
+     */
+    public static Map<String, ColumnCache> getColumnMap(Class<?> clazz) {
+        return COLUMN_CACHE_MAP.computeIfAbsent(clazz.getName(), key -> {
+            TableInfo info = TableInfoHelper.getTableInfo(clazz);
+            return info == null ? null : createColumnCacheMap(info);
+        });
+    }
+
 }

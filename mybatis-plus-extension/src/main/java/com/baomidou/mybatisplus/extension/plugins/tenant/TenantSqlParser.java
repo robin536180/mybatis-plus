@@ -15,41 +15,28 @@
  */
 package com.baomidou.mybatisplus.extension.plugins.tenant;
 
-import java.util.List;
-
 import com.baomidou.mybatisplus.core.parser.AbstractJsqlParser;
-import com.baomidou.mybatisplus.core.toolkit.Assert;
 import com.baomidou.mybatisplus.core.toolkit.ExceptionUtils;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
-import net.sf.jsqlparser.expression.operators.relational.ItemsList;
-import net.sf.jsqlparser.expression.operators.relational.MultiExpressionList;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.FromItem;
-import net.sf.jsqlparser.statement.select.Join;
-import net.sf.jsqlparser.statement.select.LateralSubSelect;
-import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.select.SelectBody;
-import net.sf.jsqlparser.statement.select.SelectExpressionItem;
-import net.sf.jsqlparser.statement.select.SetOperationList;
-import net.sf.jsqlparser.statement.select.SubJoin;
-import net.sf.jsqlparser.statement.select.SubSelect;
-import net.sf.jsqlparser.statement.select.ValuesList;
-import net.sf.jsqlparser.statement.select.WithItem;
+import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.statement.update.Update;
+
+import java.util.List;
 
 /**
  * 租户 SQL 解析器（ TenantId 行级 ）
@@ -58,6 +45,8 @@ import net.sf.jsqlparser.statement.update.Update;
  * @since 2017-09-01
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
 public class TenantSqlParser extends AbstractJsqlParser {
@@ -100,9 +89,9 @@ public class TenantSqlParser extends AbstractJsqlParser {
             // fixed github pull/295
             ItemsList itemsList = insert.getItemsList();
             if (itemsList instanceof MultiExpressionList) {
-                ((MultiExpressionList) itemsList).getExprList().forEach(el -> el.getExpressions().add(tenantHandler.getTenantId()));
+                ((MultiExpressionList) itemsList).getExprList().forEach(el -> el.getExpressions().add(tenantHandler.getTenantId(false)));
             } else {
-                ((ExpressionList) insert.getItemsList()).getExpressions().add(tenantHandler.getTenantId());
+                ((ExpressionList) insert.getItemsList()).getExpressions().add(tenantHandler.getTenantId(false));
             }
         } else {
             throw ExceptionUtils.mpe("Failed to process multiple-table update, please exclude the tableName or statementId");
@@ -114,10 +103,7 @@ public class TenantSqlParser extends AbstractJsqlParser {
      */
     @Override
     public void processUpdate(Update update) {
-        List<Table> tableList = update.getTables();
-        Assert.isTrue(null != tableList && tableList.size() < 2,
-            "Failed to process multiple-table update, please exclude the statementId");
-        Table table = tableList.get(0);
+        final Table table = update.getTable();
         if (tenantHandler.doTableFilter(table.getName())) {
             // 过滤退出执行
             return;
@@ -144,7 +130,7 @@ public class TenantSqlParser extends AbstractJsqlParser {
         //获得where条件表达式
         EqualsTo equalsTo = new EqualsTo();
         equalsTo.setLeftExpression(this.getAliasColumn(table));
-        equalsTo.setRightExpression(tenantHandler.getTenantId());
+        equalsTo.setRightExpression(tenantHandler.getTenantId(true));
         if (null != where) {
             if (where instanceof OrExpression) {
                 return new AndExpression(equalsTo, new Parenthesis(where));
@@ -172,13 +158,12 @@ public class TenantSqlParser extends AbstractJsqlParser {
         FromItem fromItem = plainSelect.getFromItem();
         if (fromItem instanceof Table) {
             Table fromTable = (Table) fromItem;
-            if (tenantHandler.doTableFilter(fromTable.getName())) {
-                // 过滤退出执行
-                return;
-            }
-            plainSelect.setWhere(builderExpression(plainSelect.getWhere(), fromTable));
-            if (addColumn) {
-                plainSelect.getSelectItems().add(new SelectExpressionItem(new Column(tenantHandler.getTenantIdColumn())));
+            if (!tenantHandler.doTableFilter(fromTable.getName())) {
+                //#1186 github
+                plainSelect.setWhere(builderExpression(plainSelect.getWhere(), fromTable));
+                if (addColumn) {
+                    plainSelect.getSelectItems().add(new SelectExpressionItem(new Column(tenantHandler.getTenantIdColumn())));
+                }
             }
         } else {
             processFromItem(fromItem);
@@ -237,32 +222,67 @@ public class TenantSqlParser extends AbstractJsqlParser {
     }
 
     /**
-     * 处理条件
+     * 处理条件:
+     * 支持 getTenantHandler().getTenantId()是一个完整的表达式：tenant in (1,2)
+     * 默认tenantId的表达式： LongValue(1)这种依旧支持
      */
-    protected Expression builderExpression(Expression expression, Table table) {
-        //生成字段名
-        EqualsTo equalsTo = new EqualsTo();
-        equalsTo.setLeftExpression(this.getAliasColumn(table));
-        equalsTo.setRightExpression(tenantHandler.getTenantId());
-        //加入判断防止条件为空时生成 "and null" 导致查询结果为空
-        if (expression == null) {
-            return equalsTo;
+    protected Expression builderExpression(Expression currentExpression, Table table) {
+        final Expression tenantExpression = tenantHandler.getTenantId(false);
+        Expression appendExpression;
+        if (!(tenantExpression instanceof SupportsOldOracleJoinSyntax)) {
+            appendExpression = new EqualsTo();
+            ((EqualsTo) appendExpression).setLeftExpression(this.getAliasColumn(table));
+            ((EqualsTo) appendExpression).setRightExpression(tenantExpression);
         } else {
-            if (expression instanceof BinaryExpression) {
-                BinaryExpression binaryExpression = (BinaryExpression) expression;
-                if (binaryExpression.getLeftExpression() instanceof FromItem) {
-                    processFromItem((FromItem) binaryExpression.getLeftExpression());
-                }
-                if (binaryExpression.getRightExpression() instanceof FromItem) {
-                    processFromItem((FromItem) binaryExpression.getRightExpression());
-                }
-            }
-            if (expression instanceof OrExpression) {
-                return new AndExpression(equalsTo, new Parenthesis(expression));
-            } else {
-                return new AndExpression(equalsTo, expression);
+            appendExpression = processTableAlias4CustomizedTenantIdExpression(tenantExpression, table);
+        }
+        if (currentExpression == null) {
+            return appendExpression;
+        }
+        if (currentExpression instanceof BinaryExpression) {
+            BinaryExpression binaryExpression = (BinaryExpression) currentExpression;
+            doExpression(binaryExpression.getLeftExpression());
+            doExpression(binaryExpression.getRightExpression());
+        } else if (currentExpression instanceof InExpression) {
+            InExpression inExp = (InExpression) currentExpression;
+            ItemsList rightItems = inExp.getRightItemsList();
+            if (rightItems instanceof SubSelect) {
+                processSelectBody(((SubSelect) rightItems).getSelectBody());
             }
         }
+        if (currentExpression instanceof OrExpression) {
+            return new AndExpression(new Parenthesis(currentExpression), appendExpression);
+        } else {
+            return new AndExpression(currentExpression, appendExpression);
+        }
+    }
+
+    protected void doExpression(Expression expression) {
+        if (expression instanceof FromItem) {
+            processFromItem((FromItem) expression);
+        } else if (expression instanceof InExpression) {
+            InExpression inExp = (InExpression) expression;
+            ItemsList rightItems = inExp.getRightItemsList();
+            if (rightItems instanceof SubSelect) {
+                processSelectBody(((SubSelect) rightItems).getSelectBody());
+            }
+        }
+    }
+
+    /**
+     * 目前: 针对自定义的tenantId的条件表达式[tenant_id in (1,2,3)]，无法处理多租户的字段加上表别名
+     * select a.id, b.name
+     * from a
+     * join b on b.aid = a.id and [b.]tenant_id in (1,2) --别名[b.]无法加上 TODO
+     *
+     * @param expression
+     * @param table
+     * @return 加上别名的多租户字段表达式
+     */
+    protected Expression processTableAlias4CustomizedTenantIdExpression(Expression expression, Table table) {
+        //cannot add table alias for customized tenantId expression,
+        // when tables including tenantId at the join table poistion
+        return expression;
     }
 
     /**

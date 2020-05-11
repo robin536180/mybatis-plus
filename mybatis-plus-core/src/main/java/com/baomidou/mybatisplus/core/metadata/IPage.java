@@ -34,7 +34,9 @@ public interface IPage<T> extends Serializable {
      * 降序字段数组
      *
      * @return order by desc 的字段数组
+     * @see #orders()
      */
+    @Deprecated
     default String[] descs() {
         return null;
     }
@@ -43,10 +45,19 @@ public interface IPage<T> extends Serializable {
      * 升序字段数组
      *
      * @return order by asc 的字段数组
+     * @see #orders()
      */
+    @Deprecated
     default String[] ascs() {
         return null;
     }
+
+    /**
+     * 获取排序信息，排序的字段和正反序
+     *
+     * @return 排序信息
+     */
+    List<OrderItem> orders();
 
     /**
      * KEY/VALUE 条件
@@ -106,6 +117,26 @@ public interface IPage<T> extends Serializable {
     }
 
     /**
+     * 设置是否命中count缓存
+     *
+     * @param hit 是否命中
+     * @since 3.3.1
+     */
+    default void hitCount(boolean hit) {
+
+    }
+
+    /**
+     * 是否命中count缓存
+     *
+     * @return 是否命中count缓存
+     * @since 3.3.1
+     */
+    default boolean isHitCount() {
+        return false;
+    }
+
+    /**
      * 分页记录列表
      *
      * @return 分页对象记录列表
@@ -130,21 +161,21 @@ public interface IPage<T> extends Serializable {
     IPage<T> setTotal(long total);
 
     /**
-     * 当前分页总页数
+     * 获取每页显示条数
      *
-     * @return 总页数
+     * @return 每页显示条数
      */
     long getSize();
 
     /**
-     * 设置当前分页总页数
+     * 设置每页显示条数
      */
     IPage<T> setSize(long size);
 
     /**
      * 当前页，默认 1
      *
-     * @return 当然页
+     * @return 当前页
      */
     long getCurrent();
 

@@ -18,15 +18,10 @@ package com.baomidou.mybatisplus.extension.activerecord;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.enums.SqlMethod;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.core.toolkit.Assert;
-import com.baomidou.mybatisplus.core.toolkit.Constants;
-import com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils;
-import com.baomidou.mybatisplus.core.toolkit.ReflectionKit;
-import com.baomidou.mybatisplus.core.toolkit.StringUtils;
-import com.baomidou.mybatisplus.core.toolkit.TableInfoHelper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.core.toolkit.*;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import com.baomidou.mybatisplus.extension.toolkit.SqlRunner;
-
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.apache.ibatis.session.SqlSession;
@@ -185,7 +180,6 @@ public abstract class Model<T extends Model<?>> implements Serializable {
      *
      * @param queryWrapper 实体对象封装操作类（可以为 null）
      */
-
     public List<T> selectList(Wrapper<T> queryWrapper) {
         Map<String, Object> map = new HashMap<>(1);
         map.put(Constants.WRAPPER, queryWrapper);
@@ -212,7 +206,7 @@ public abstract class Model<T extends Model<?>> implements Serializable {
      * @param page         翻页查询条件
      * @param queryWrapper 实体对象封装操作类（可以为 null）
      */
-    public IPage<T> selectPage(IPage<T> page, Wrapper<T> queryWrapper) {
+    public <E extends IPage<T>> E selectPage(E page, Wrapper<T> queryWrapper) {
         Map<String, Object> map = new HashMap<>(2);
         map.put(Constants.WRAPPER, queryWrapper);
         map.put("page", page);

@@ -17,8 +17,11 @@ package com.baomidou.mybatisplus.autoconfigure;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
+import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils;
 import lombok.Data;
+import lombok.experimental.Accessors;
+import org.apache.ibatis.scripting.LanguageDriver;
 import org.apache.ibatis.session.ExecutorType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
@@ -38,10 +41,9 @@ import java.util.stream.Stream;
  * @author Kazuki Shimizu
  */
 @Data
-@ConfigurationProperties(prefix = MybatisPlusProperties.MYBATIS_PREFIX)
+@Accessors(chain = true)
+@ConfigurationProperties(prefix = Constants.MYBATIS_PLUS)
 public class MybatisPlusProperties {
-
-    public static final String MYBATIS_PREFIX = "mybatis-plus";
 
     private static final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
 
@@ -52,8 +54,10 @@ public class MybatisPlusProperties {
 
     /**
      * Locations of MyBatis mapper files.
+     *
+     * @since 3.1.2 add default value
      */
-    private String[] mapperLocations;
+    private String[] mapperLocations = new String[]{"classpath*:/mapper/**/*.xml"};
 
     /**
      * Packages to search type aliases. (Package delimiters are ",; \t\n")
@@ -80,6 +84,13 @@ public class MybatisPlusProperties {
      * Execution mode for {@link org.mybatis.spring.SqlSessionTemplate}.
      */
     private ExecutorType executorType;
+
+    /**
+     * The default scripting language driver class. (Available when use together with mybatis-spring 2.0.2+)
+     * <p>
+     * 如果设置了这个,你会至少失去几乎所有 mp 提供的功能
+     */
+    private Class<? extends LanguageDriver> defaultScriptingLanguageDriver;
 
     /**
      * Externalized properties for MyBatis configuration.

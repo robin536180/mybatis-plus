@@ -18,6 +18,7 @@ package com.baomidou.mybatisplus.test.h2.mapper;
 import java.util.List;
 import java.util.Map;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
@@ -94,11 +95,16 @@ public interface H2UserMapper extends SuperMapper<H2User> {
         ") a")
     int selectCountWithParamInSelectItems(Map<String, Object> param);
 
-    @Select("select * from h2user")
-    List<Map<?,?>> mySelectMaps();
+    @Select("select age,name,count(age) from h2user group by age,name order by age")
+    List<Map<?,?>> mySelectMaps(IPage<H2User> page);
 
     @Select("call 1")
     @Options(statementType = StatementType.CALLABLE)
     String testCall();
 
+    @Select("select * from h2user")
+    IPage<H2User> testPage1(@Param(value = "user") H2User h2User, @Param(value = "page") Page page);
+
+    @Select("select * from h2user")
+    IPage<H2User> testPage2(@Param(value = "user") Page page, @Param(value = "page") H2User h2User);
 }

@@ -15,22 +15,19 @@
  */
 package com.baomidou.mybatisplus.test;
 
-import com.alibaba.druid.pool.DruidDataSource;
-import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.handlers.EnumTypeHandler;
+import com.baomidou.mybatisplus.extension.handlers.MybatisEnumTypeHandler;
+import com.baomidou.mybatisplus.test.h2.entity.H2User;
 import com.baomidou.mybatisplus.test.h2.enums.AgeEnum;
 import com.baomidou.mybatisplus.test.h2.mapper.H2UserMapper;
-import com.baomidou.mybatisplus.test.h2.entity.H2User;
-
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.type.TypeHandlerRegistry;
-import org.h2.Driver;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,12 +49,9 @@ class MybatisTest {
 
     @Test
     void test() throws IOException, SQLException {
-        DruidDataSource dataSource = new DruidDataSource();
-        dataSource.setDbType(DbType.H2.getDb());
-        dataSource.setDriver(new Driver());
-        dataSource.setUsername("sa");
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setUser("sa");
         dataSource.setPassword("");
-        dataSource.setValidationQuery("select 1");
         dataSource.setUrl("jdbc:h2:mem:test;MODE=mysql;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
         Reader reader = Resources.getResourceAsReader("mybatis-config.xml");
         SqlSessionFactory factory = new MybatisSqlSessionFactoryBuilder().build(reader);
@@ -68,7 +62,7 @@ class MybatisTest {
          *  如果是将defaultEnumTypeHandler设置成MP的处理器,
          *  请自行注册处理非MP枚举处理类的原生枚举类型
          */
-        typeHandlerRegistry.register(AgeEnum.class, EnumTypeHandler.class);     //这里我举起了个栗子
+        typeHandlerRegistry.register(AgeEnum.class, MybatisEnumTypeHandler.class);     //这里我举起了个栗子
         Connection connection = dataSource.getConnection();
         ScriptRunner scriptRunner = new ScriptRunner(connection);
         scriptRunner.runScript(Resources.getResourceAsReader("h2/user.ddl.sql"));

@@ -15,12 +15,11 @@
  */
 package com.baomidou.mybatisplus.extension.toolkit;
 
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
-
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.toolkit.Assert;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
 
 /**
  * JDBC 工具类
@@ -39,30 +38,35 @@ public class JdbcUtils {
      * @return ignore
      */
     public static DbType getDbType(String jdbcUrl) {
-        Assert.isFalse(StringUtils.isEmpty(jdbcUrl), "Error: The jdbcUrl is Null, Cannot read database type");
-        if (jdbcUrl.startsWith("jdbc:mysql:") || jdbcUrl.startsWith("jdbc:cobar:")
-            || jdbcUrl.startsWith("jdbc:log4jdbc:mysql:")) {
+        Assert.isFalse(StringUtils.isBlank(jdbcUrl), "Error: The jdbcUrl is Null, Cannot read database type");
+        if (jdbcUrl.contains(":mysql:") || jdbcUrl.contains(":cobar:")) {
             return DbType.MYSQL;
-        } else if (jdbcUrl.startsWith("jdbc:mariadb:")) {
+        } else if (jdbcUrl.contains(":mariadb:")) {
             return DbType.MARIADB;
-        } else if (jdbcUrl.startsWith("jdbc:oracle:") || jdbcUrl.startsWith("jdbc:log4jdbc:oracle:")) {
+        } else if (jdbcUrl.contains(":oracle:")) {
             return DbType.ORACLE;
-        } else if (jdbcUrl.startsWith("jdbc:sqlserver:") || jdbcUrl.startsWith("jdbc:microsoft:")) {
+        } else if (jdbcUrl.contains(":sqlserver:") || jdbcUrl.contains(":microsoft:")) {
             return DbType.SQL_SERVER2005;
-        } else if (jdbcUrl.startsWith("jdbc:sqlserver2012:")) {
+        } else if (jdbcUrl.contains(":sqlserver2012:")) {
             return DbType.SQL_SERVER;
-        } else if (jdbcUrl.startsWith("jdbc:postgresql:") || jdbcUrl.startsWith("jdbc:log4jdbc:postgresql:")) {
+        } else if (jdbcUrl.contains(":postgresql:")) {
             return DbType.POSTGRE_SQL;
-        } else if (jdbcUrl.startsWith("jdbc:hsqldb:") || jdbcUrl.startsWith("jdbc:log4jdbc:hsqldb:")) {
+        } else if (jdbcUrl.contains(":hsqldb:")) {
             return DbType.HSQL;
-        } else if (jdbcUrl.startsWith("jdbc:db2:")) {
+        } else if (jdbcUrl.contains(":db2:")) {
             return DbType.DB2;
-        } else if (jdbcUrl.startsWith("jdbc:sqlite:")) {
+        } else if (jdbcUrl.contains(":sqlite:")) {
             return DbType.SQLITE;
-        } else if (jdbcUrl.startsWith("jdbc:h2:") || jdbcUrl.startsWith("jdbc:log4jdbc:h2:")) {
+        } else if (jdbcUrl.contains(":h2:")) {
             return DbType.H2;
-        } else if (jdbcUrl.startsWith("jdbc:dm:") || jdbcUrl.startsWith("jdbc:log4jdbc:dm:")) {
+        } else if (jdbcUrl.contains(":dm:")) {
             return DbType.DM;
+        } else if (jdbcUrl.contains(":xugu:")) {
+            return DbType.XU_GU;
+        } else if (jdbcUrl.contains(":kingbase:") || jdbcUrl.contains(":kingbase8:")) {
+            return DbType.KINGBASE_ES;
+        } else if (jdbcUrl.contains(":phoenix:")) {
+            return DbType.PHOENIX;
         } else {
             logger.warn("The jdbcUrl is " + jdbcUrl + ", Mybatis Plus Cannot Read Database type or The Database's Not Supported!");
             return DbType.OTHER;

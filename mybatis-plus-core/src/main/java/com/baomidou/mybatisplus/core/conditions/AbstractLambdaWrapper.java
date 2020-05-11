@@ -16,7 +16,7 @@
 package com.baomidou.mybatisplus.core.conditions;
 
 import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
-import com.baomidou.mybatisplus.core.toolkit.ExceptionUtils;
+import com.baomidou.mybatisplus.core.toolkit.Assert;
 import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.core.toolkit.support.ColumnCache;
@@ -25,7 +25,7 @@ import com.baomidou.mybatisplus.core.toolkit.support.SerializedLambda;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 
 import java.util.Arrays;
-import java.util.Optional;
+import java.util.Map;
 
 import static java.util.stream.Collectors.joining;
 
@@ -40,10 +40,8 @@ import static java.util.stream.Collectors.joining;
 public abstract class AbstractLambdaWrapper<T, Children extends AbstractLambdaWrapper<T, Children>>
     extends AbstractWrapper<T, SFunction<T, ?>, Children> {
 
-    @Override
-    protected void initEntityClass() {
-        super.initEntityClass();
-    }
+    private Map<String, ColumnCache> columnMap = null;
+    private boolean initColumnMap = false;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -79,11 +77,24 @@ public abstract class AbstractLambdaWrapper<T, Children extends AbstractLambdaWr
      */
     private String getColumn(SerializedLambda lambda, boolean onlyColumn) throws MybatisPlusException {
         String fieldName = PropertyNamer.methodToProperty(lambda.getImplMethodName());
+        Class<?> aClass = lambda.getInstantiatedType();
+        if (!initColumnMap) {
+            columnMap = LambdaUtils.getColumnMap(aClass);
+        }
+        Assert.notNull(columnMap, "can not find lambda cache for this entity [%s]", aClass.getName());
+        ColumnCache columnCache = columnMap.get(LambdaUtils.formatKey(fieldName));
+        Assert.notNull(columnCache, "can not find lambda cache for this property [%s] of entity [%s]",
+            fieldName, aClass.getName());
+        return onlyColumn ? columnCache.getColumn() : columnCache.getColumnSelect();
+    }
 
-        return Optional.ofNullable(LambdaUtils.getColumnOfProperty(lambda.getImplClass(), fieldName))
-            .map(onlyColumn ? ColumnCache::getColumn : ColumnCache::getColumnSelect)
-            .orElseThrow(() ->
-                ExceptionUtils.mpe("Your property named \"%s\" cannot find the corresponding database column name!", fieldName)
-            );
+    @Override
+    protected void initNeed() {
+        super.initNeed();
+        final Class<T> entityClass = getEntityClass();
+        if (entityClass != null) {
+            initColumnMap = true;
+            columnMap = LambdaUtils.getColumnMap(entityClass);
+        }
     }
 }

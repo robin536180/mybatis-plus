@@ -35,15 +35,17 @@ public class Delete extends AbstractMethod {
         SqlMethod sqlMethod = SqlMethod.LOGIC_DELETE;
         if (tableInfo.isLogicDelete()) {
             sql = String.format(sqlMethod.getSql(), tableInfo.getTableName(), sqlLogicSet(tableInfo),
-                sqlWhereEntityWrapper(true, tableInfo));
+                sqlWhereEntityWrapper(true, tableInfo),
+                sqlComment());
             SqlSource sqlSource = languageDriver.createSqlSource(configuration, sql, modelClass);
-            return addUpdateMappedStatement(mapperClass, modelClass, sqlMethod.getMethod(), sqlSource);
+            return addUpdateMappedStatement(mapperClass, modelClass, getMethod(sqlMethod), sqlSource);
         } else {
             sqlMethod = SqlMethod.DELETE;
             sql = String.format(sqlMethod.getSql(), tableInfo.getTableName(),
-                sqlWhereEntityWrapper(true, tableInfo));
+                sqlWhereEntityWrapper(true, tableInfo),
+                sqlComment());
             SqlSource sqlSource = languageDriver.createSqlSource(configuration, sql, modelClass);
-            return this.addDeleteMappedStatement(mapperClass, sqlMethod.getMethod(), sqlSource);
+            return this.addDeleteMappedStatement(mapperClass, getMethod(sqlMethod), sqlSource);
         }
     }
 }

@@ -13,18 +13,16 @@
     <img alt="maven" src="https://img.shields.io/maven-central/v/com.baomidou/mybatis-plus.svg?style=flat-square">
   </a>
 
-  <a href="https://github.com/996icu/996.ICU/blob/master/LICENSE">
-    <img alt="996icu" src="https://img.shields.io/badge/license-NPL%20(The%20996%20Prohibited%20License)-blue.svg">
-  </a>
-
   <a href="https://www.apache.org/licenses/LICENSE-2.0">
     <img alt="code style" src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg?style=flat-square">
+  </a>
+
+  <a href="https://gitter.im/baomidou/mybatis-plus?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
+    <img alt="Join the chat at https://gitter.im/baomidou/mybatis-plus" src="https://badges.gitter.im/baomidou/mybatis-plus.svg">
   </a>
 </p>
 
 ## What is MyBatis-Plus?
-
-[![Join the chat at https://gitter.im/baomidou/mybatis-plus](https://badges.gitter.im/baomidou/mybatis-plus.svg)](https://gitter.im/baomidou/mybatis-plus?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 MyBatis-Plus is an powerful enhanced toolkit of MyBatis for simplify development. This toolkit provides some efficient, useful, out-of-the-box features for MyBatis, use it can effectively save your development time.
 
@@ -44,7 +42,7 @@ MyBatis-Plus is an powerful enhanced toolkit of MyBatis for simplify development
 -   Lambda-style API
 -   Almighty and highly customizable code generator
 -   Automatic paging operation
--   SQL Injection defense
+-   SQL Inject defense
 -   Support active record
 -   Support pluggable custom interface
 -   Build-in many useful extensions
@@ -57,12 +55,12 @@ MyBatis-Plus is an powerful enhanced toolkit of MyBatis for simplify development
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.1.0</version>
+            <version>3.2.0</version>
         </dependency>
         ```
     -   Gradle
         ```groovy
-        compile group: 'com.baomidou', name: 'mybatis-plus-boot-starter', version: '3.1.0'
+        compile group: 'com.baomidou', name: 'mybatis-plus-boot-starter', version: '3.1.2'
         ```
 -   Modify mapper file extends BaseMapper interface
 
@@ -73,18 +71,20 @@ MyBatis-Plus is an powerful enhanced toolkit of MyBatis for simplify development
     ```
 
 -   Use it
-    ``` java
+    ```java
     List<User> userList = userMapper.selectList(
             new QueryWrapper<User>()
                     .lambda()
                     .ge(User::getAge, 18)
     );
     ```
-    SQL executed
-    ``` sql
+    MyBatis-Plus will execute the following SQL
+    ```sql
     SELECT * FROM user WHERE age >= 18
     ```
 
+> This showcase is just a small part of MyBatis-Plus features. If you want to learn more, please refer to the [documentation](https://mybatis.plus).
+
 ## License
 
-MyBatis-Plus is under the Apache 2.0 license. See the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+MyBatis-Plus is under the Apache 2.0 license. See the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) file for details.

@@ -110,9 +110,10 @@ public class IllegalSQLInterceptor implements Interceptor {
             throw new MybatisPlusException("非法SQL，where条件中不能使用【!=】关键字，错误!=信息：" + notEqualsTo.toString());
         } else if (expression instanceof BinaryExpression) {
             BinaryExpression binaryExpression = (BinaryExpression) expression;
-            if (binaryExpression.isNot()) {
-                throw new MybatisPlusException("非法SQL，where条件中不能使用【not】关键字，错误not信息：" + binaryExpression.toString());
-            }
+            // TODO 升级 jsqlparser 后待实现
+//            if (binaryExpression.isNot()) {
+//                throw new MybatisPlusException("非法SQL，where条件中不能使用【not】关键字，错误not信息：" + binaryExpression.toString());
+//            }
             if (binaryExpression.getLeftExpression() instanceof Function) {
                 Function function = (Function) binaryExpression.getLeftExpression();
                 throw new MybatisPlusException("非法SQL，where条件中不能使用数据库函数，错误函数信息：" + function.toString());
@@ -259,14 +260,16 @@ public class IllegalSQLInterceptor implements Interceptor {
      */
     public static List<IndexInfo> getIndexInfos(String key, String dbName, String tableName, Connection conn) {
         List<IndexInfo> indexInfos = null;
-        if (StringUtils.isNotEmpty(key)) {
+        if (StringUtils.isNotBlank(key)) {
             indexInfos = indexInfoMap.get(key);
         }
         if (indexInfos == null || indexInfos.isEmpty()) {
             ResultSet rs;
             try {
                 DatabaseMetaData metadata = conn.getMetaData();
-                rs = metadata.getIndexInfo(dbName, dbName, tableName, false, true);
+                String catalog = StringUtils.isBlank(dbName) ? conn.getCatalog() : dbName;
+                String schema = StringUtils.isBlank(dbName) ? conn.getSchema() : dbName;
+                rs = metadata.getIndexInfo(catalog, schema, tableName, false, true);
                 indexInfos = new ArrayList<>();
                 while (rs.next()) {
                     //索引中的列序列号等于1，才有效
@@ -278,7 +281,7 @@ public class IllegalSQLInterceptor implements Interceptor {
                         indexInfos.add(indexInfo);
                     }
                 }
-                if (StringUtils.isNotEmpty(key)) {
+                if (StringUtils.isNotBlank(key)) {
                     indexInfoMap.put(key, indexInfos);
                 }
             } catch (SQLException e) {
@@ -318,7 +321,7 @@ public class IllegalSQLInterceptor implements Interceptor {
         } else if (statement instanceof Update) {
             Update update = (Update) statement;
             where = update.getWhere();
-            table = update.getTables().get(0);
+            table = update.getTable();
             joins = update.getJoins();
         } else if (statement instanceof Delete) {
             Delete delete = (Delete) statement;
